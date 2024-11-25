@@ -43,3 +43,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 yeah I got bored and prompted Claude to reconstruct Setool in js and it works
 
 Took like 2 hours of prompting ezpz
+
+# how2build
+
+do the `pnpm deploy-all`  to build to gh-pages format.
+
