@@ -51,7 +51,7 @@ export default function App() {
             <AccordionContent>
               <p>The Basics:</p>
               <ul className="list-disc list-inside pl-4">
-                <li>Initially blank data means no filters have been applied. Try >=1 in the Level category.</li>
+                <li>Initially blank data means no filters have been applied. Try `{'>'}`=1 in the Level category.</li>
                 <li>Use inequalities to filter numeric columns (e.g., Items 1-13, mean score, Responses).</li>
                 <li>Sort by highest/lowest using the header arrows in each category.</li>
                 <li>Text rows (e.g., unit code, semester) can be filtered by keywords.</li>
