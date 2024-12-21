@@ -15,6 +15,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { UnitScore } from '@/types/dashboard'
+
+// convert a UnitScore to a unique ID:
+const unitScoreToId = (row: UnitScore) => `${row.unit_code}${row.Season}`;
 
 // Comparison operators
 const OPERATORS = {
@@ -129,9 +133,9 @@ const ColumnManager = ({ columns, visibleColumns, onToggle }) => {
 };
 
 const UnitScoresDashboard = () => {
-  const [data] = useState(jsonData);
+  const [data] = useState<UnitScore[]>(jsonData as UnitScore[]);
   const [filters, setFilters] = useState({});
-  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [selectedUnits, setSelectedUnits] = useState<Set<string>>(new Set());
   const [visibleColumns, setVisibleColumns] = useState(new Set([
     'unit_name', 'unit_code', 'Season', 'Level', 'Responses', 'Invited', 
     ...Array.from({length: 13}, (_, i) => `I${i+1}`), 'agg_score'
@@ -217,12 +221,42 @@ const UnitScoresDashboard = () => {
     return sortedData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [sortedData, currentPage]);
 
+  const selectedRowsData = useMemo(() => {
+    return data.filter(row => selectedUnits.has(unitScoreToId(row)));
+  }, [data, selectedUnits]);
+
   const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
-    setSelectedRows(new Set()); // Reset selected rows when changing pages
   };
+
+  const toggleRowSelection = (id: string) => {
+    setSelectedUnits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    })
+  };
+
+  const toggleAllSelected = (checked: boolean) => {
+    setSelectedUnits(prev => {
+      const newSet = new Set(prev);
+      paginatedData.forEach(row => {
+        if (checked) {
+          newSet.add(unitScoreToId(row));
+        } else {
+          newSet.delete(unitScoreToId(row));
+        }
+      });
+
+      return newSet;
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -252,7 +286,10 @@ const UnitScoresDashboard = () => {
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
-              <Select value={aggregationType} onValueChange={setAggregationType}>
+              <Select
+                value={aggregationType}
+                onValueChange={setAggregationType}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -261,7 +298,7 @@ const UnitScoresDashboard = () => {
                   <SelectItem value="median">Median</SelectItem>
                 </SelectContent>
               </Select>
-              <ColumnManager 
+              <ColumnManager
                 columns={allColumns}
                 visibleColumns={visibleColumns}
                 onToggle={toggleColumn}
@@ -287,25 +324,14 @@ const UnitScoresDashboard = () => {
                 <tr>
                   <th className="p-2 border">
                     <Checkbox
-                      checked={paginatedData.length > 0 && selectedRows.size === paginatedData.length}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          const newSelected = new Set(selectedRows);
-                          paginatedData.forEach((_, index) => {
-                            newSelected.add((currentPage - 1) * ITEMS_PER_PAGE + index);
-                          });
-                          setSelectedRows(newSelected);
-                        } else {
-                          const newSelected = new Set(selectedRows);
-                          paginatedData.forEach((_, index) => {
-                            newSelected.delete((currentPage - 1) * ITEMS_PER_PAGE + index);
-                          });
-                          setSelectedRows(newSelected);
-                        }
-                      }}
+                      checked={
+                        paginatedData.length > 0 &&
+                        selectedUnits.size === paginatedData.length
+                      }
+                      onCheckedChange={toggleAllSelected}
                     />
                   </th>
-                  {Array.from(visibleColumns).map(column => (
+                  {Array.from(visibleColumns).map((column) => (
                     <th key={column} className="p-2 border">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center justify-between">
@@ -316,14 +342,22 @@ const UnitScoresDashboard = () => {
                             onClick={() => handleSort(column)}
                           >
                             {sortConfig.key === column ? (
-                              sortConfig.direction === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
+                              sortConfig.direction === "asc" ? (
+                                <SortAsc className="w-4 h-4" />
+                              ) : (
+                                <SortDesc className="w-4 h-4" />
+                              )
                             ) : null}
                           </Button>
                         </div>
                         <FilterInput
                           value={filters[column]}
                           onChange={(value) => handleFilter(column, value)}
-                          type={typeof data[0][column] === 'number' ? 'text' : 'text'}
+                          type={
+                            typeof data[0][column] === "number"
+                              ? "text"
+                              : "text"
+                          }
                           placeholder={`Filter ${column}`}
                         />
                       </div>
@@ -334,37 +368,40 @@ const UnitScoresDashboard = () => {
               <tbody>
                 {sortedData.length === 0 ? (
                   <tr>
-                    <td colSpan={visibleColumns.size + 1} className="p-8 text-center text-gray-500">
+                    <td
+                      colSpan={visibleColumns.size + 1}
+                      className="p-8 text-center text-gray-500"
+                    >
                       Enter filters above to view data
                     </td>
                   </tr>
                 ) : (
                   paginatedData.map((row, index) => {
-                    const actualIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
+                    const actualIndex =
+                      (currentPage - 1) * ITEMS_PER_PAGE + index;
                     return (
-                      <tr key={actualIndex} className={selectedRows.has(actualIndex) ? 'bg-blue-50' : ''}>
+                      <tr
+                        key={actualIndex}
+                        className={
+                          selectedUnits.has(unitScoreToId(row))
+                            ? "bg-blue-50"
+                            : ""
+                        }
+                      >
                         <td className="p-2 border">
                           <Checkbox
-                            checked={selectedRows.has(actualIndex)}
-                            onCheckedChange={() => {
-                              setSelectedRows(prev => {
-                                const newSet = new Set(prev);
-                                if (newSet.has(actualIndex)) {
-                                  newSet.delete(actualIndex);
-                                } else {
-                                  newSet.add(actualIndex);
-                                }
-                                return newSet;
-                              });
-                            }}
+                            checked={selectedUnits.has(unitScoreToId(row))}
+                            onCheckedChange={() =>
+                              toggleRowSelection(unitScoreToId(row))
+                            }
                           />
                         </td>
-                        {Array.from(visibleColumns).map(column => (
+                        {Array.from(visibleColumns).map((column) => (
                           <td key={column} className="p-2 border">
                             {Array.isArray(row[column]) ? (
                               <ScoreCell
                                 value={
-                                  aggregationType === 'mean'
+                                  aggregationType === "mean"
                                     ? row[column][0]
                                     : row[column][1]
                                 }
@@ -384,36 +421,56 @@ const UnitScoresDashboard = () => {
         </CardContent>
       </Card>
 
-      {selectedRows.size > 0 && (
+      {selectedUnits.size > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Comparison Table ({selectedRows.size} items)</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                Comparison Table ({selectedUnits.size} items)
+              </CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedUnits(new Set());
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Table
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto max-h-96">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 bg-white">
                   <tr>
-                    {Array.from(visibleColumns).map(column => (
-                      <th key={column} className="p-2 border">{column}</th>
+                    {Array.from(visibleColumns).map((column) => (
+                      <th key={column} className="p-2 border">
+                        {column}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from(selectedRows).map(index => (
-                    <tr key={index}>
-                      {Array.from(visibleColumns).map(column => (
-                        <td key={column} className="p-2 border">
-                          {Array.isArray(sortedData[index][column]) ? (
+                  {selectedRowsData.map((row) => (
+                    <tr key={unitScoreToId(row)}>
+                      {Array.from(visibleColumns).map((col) => (
+                        <td key={col} className="p-2 border">
+                          {Array.isArray(row[col]) ? (
                             <ScoreCell
                               value={
-                                aggregationType === 'mean'
-                                  ? sortedData[index][column][0]
-                                  : sortedData[index][column][1]
+                                aggregationType === "mean"
+                                  ? row[col][0]
+                                  : row[col][1]
                               }
                             />
                           ) : (
-                            sortedData[index][column]
+                            row[col]
                           )}
                         </td>
                       ))}
